@@ -1,0 +1,99 @@
+---
+title: "MSDS6371Project"
+author: "Allen Miller & Mingyang Nick YU"
+date: "11/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Read in Training Data and initial inspection:
+```{r}
+#Load required libraries
+library(tidyverse)
+library(ggplot2)
+library(olsrr)
+#Load in Dataset
+#Call original data amesHouse
+amesHouse = read.csv("/Users/mingyang/Desktop/SMU/StatisticalFoundation_Fall2020/MSDS6371Project/train.csv",header = TRUE)
+#observe data
+head(amesHouse)
+str(amesHouse)
+#look at neighborhood
+amesHouse$Neighborhood
+```
+
+#### Analysis 1:
+```{r}
+#extract variables we're interested for Analysis 1
+data1 = amesHouse %>% select(SalePrice,GrLivArea,Neighborhood)%>%
+  filter(Neighborhood=="NAmes"|Neighborhood=="Edwards"|Neighborhood=="BrkSide")
+str(data1)
+#383 observations selected after filtering neighborhood of "NAmes", "Edwards" and "BrkSide"
+#Convert Neighborhood to factors
+data1$Neighborhood = as.factor(data1$Neighborhood)
+#Plot and observe the relationship between SalePrice and GrLivArea
+data1 %>% ggplot(aes(x=GrLivArea,y=SalePrice))+
+  geom_point()+ggtitle("Sale Price vs. Square Foot of Living area")+
+  xlab("Square Foot of Living Area")+
+  ylab("Sale Price")
+#there are some outliers that may not have come from the same population of interest
+#build model to identify the outliers
+model1 = lm(SalePrice~GrLivArea,data=data1)
+summary(model1)
+#Look at residual plots and cook's distance
+plot(model1)
+cooksDistance = data.frame(distance = cooks.distance(model1))
+cooksDistance%>%filter(distance>=1)
+ols_plot_cooksd_bar(model1)
+ols_plot_resid_stand(model1)
+#ols_plot_resid_lev(model1)
+# Observation 339 has cook's distance larger than 5.6, Observation 131's cook's D is larger than 1 so it may due to the face it is a unique case.
+# Observation 169 and 190 has standarlized residual greater than 4, these two observations can also potentially not coming from the same population of interest
+# Since our sample is sufficiently large, deleting these four outliers won't make a huge difference.
+# Call these new dataset without outliers data2
+data2 = data1[-c(131,169,190,339),]
+str(data2)
+#build new model to double check
+model2 = lm(SalePrice~GrLivArea,data=data2)
+summary(model2)
+plot(model2)
+ols_plot_cooksd_bar(model2)
+ols_plot_resid_stand(model2)
+#Cook's Distance within roughly 0.1, residual within 3, decent amount of observations beyond 2 (within 5%)
+#Assumptions met, move on to include categorical variables
+model3 = lm(SalePrice~GrLivArea+Neighborhood+GrLivArea*Neighborhood,data=data2)
+summary(model3)
+plot(model3)
+ols_plot_cooksd_bar(model3)
+ols_plot_resid_stand(model3)
+#Assumptions are met, model 3 has higher Adjusted R-squared compared to model2
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
