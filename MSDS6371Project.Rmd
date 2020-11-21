@@ -164,7 +164,6 @@ variables.used$GarageType = as.character(variables.used$GarageType)
 variables.used$GarageType = ifelse(is.na(variables.used$GarageType),"NONE",variables.used$GarageType)
 variables.used$GarageType = as.factor(variables.used$GarageType)
 
-temp = variables.used %>% drop_na()
 ```
 
 
@@ -181,6 +180,8 @@ step.model$finalModel
 summary(step.model$finalModel)
 print(step.model)
 exp(0.1494448)
+ols_plot_resid_stand(step.model$finalModel)
+ols_plot_cooksd_bar(step.model$finalModel)
 ```
 
 ### Load in Test Data 
@@ -223,9 +224,118 @@ result.stepwise = testVariable %>% dplyr::select(Id,SalePrice)
 write.csv(result.stepwise,"stepwise_Prediction_Miller_YU.csv",row.names = FALSE)
 ```
 
+### Forward Selection - Kaggle Score 0.15432
+```{r}
+set.seed(12)
+#create forward fit model
+
+#write a program to pretict 100 different combination to test forward selection model
+iterations = 100
+splitPerc = 0.8
+total_RMSE = 0
+for(i in 1:iterations){
+  trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
+  train = variables.used[trainIndices,]
+  test = variables.used[-trainIndices,]
+  forward_fit = lm(lSalePrice~.-Id,data=train)
+  forward.model = ols_step_forward_aic(forward_fit,penter=0.15)
+  prediction = predict(forward.model$model,test)
+  squared_MSPE = mean((test$lSalePrice - prediction)^2)
+  temp_RMSE = sqrt(squared_MSPE)
+  total_RMSE = total_RMSE+temp_RMSE
+}
+#CV Press=1.003755
+exp(total_RMSE/iterations)
+#Build model with full dataset for fitting
+forward_fit = lm(lSalePrice~.-Id,data=variables.used)
+forward.model = ols_step_forward_aic(forward_fit,penter=0.15)
+forward.model$model
+forward.model
+ols_plot_resid_stand(forward.model$model)
+ols_plot_cooksd_bar(forward.model$model)
+plot(forward.model$model)
+
+testVariable$lSalePriceForward = predict(forward.model$model,testVariable)
+testVariable$SalePrice = exp(testVariable$lSalePriceForward)
+result.forward = testVariable %>% dplyr::select(Id,SalePrice)
+write.csv(result.forward,"Forward_Prediction_Miller_YU_2.csv",row.names = FALSE)
 
 
+```
 
+### Backward Selection - Kaggle Score 0.15432
+```{r}
+set.seed(15)
+#create forward fit model
+
+#write a program to pretict 100 different combination to test forward selection model
+iterations = 100
+splitPerc = 0.8
+total_RMSE = 0
+for(i in 1:iterations){
+  trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
+  train = variables.used[trainIndices,]
+  test = variables.used[-trainIndices,]
+  backward_fit = lm(lSalePrice~.-Id,data=train)
+  backward.model = ols_step_backward_aic(backward_fit)
+  prediction = predict(backward.model$model,test)
+  squared_MSPE = mean((test$lSalePrice - prediction)^2)
+  temp_RMSE = sqrt(squared_MSPE)
+  total_RMSE = total_RMSE+temp_RMSE
+}
+#CV Press = 1
+exp(total_RMSE/iterations)
+#Build model with full dataset for fitting
+backward_fit = lm(lSalePrice~.-Id,data=variables.used)
+backward.model = ols_step_backward_aic(backward_fit)
+backward.model$model
+backward.model
+ols_plot_resid_stand(backward.model$model)
+ols_plot_cooksd_bar(backward.model$model)
+plot(backward.model$model)
+
+testVariable$lSalePriceBackward = predict(backward.model$model,testVariable)
+testVariable$SalePrice = exp(testVariable$lSalePriceBackward)
+result.backward = testVariable %>% dplyr::select(Id,SalePrice)
+write.csv(result.backward,"Backward_Prediction_Miller_YU.csv",row.names = FALSE)
+```
+
+### Backward Selection - use p-value - Kaggle 0.15505
+```{r}
+set.seed(16)
+#create forward fit model
+
+#write a program to pretict 100 different combination to test forward selection model
+iterations = 100
+splitPerc = 0.8
+total_RMSE = 0
+for(i in 1:iterations){
+  trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
+  train = variables.used[trainIndices,]
+  test = variables.used[-trainIndices,]
+  backward_fit = lm(lSalePrice~.-Id,data=train)
+  backward.model = ols_step_backward_p(backward_fit,prem=0.1,details=FALSE)
+  prediction = predict(backward.model$model,test)
+  squared_MSPE = mean((test$lSalePrice - prediction)^2)
+  temp_RMSE = sqrt(squared_MSPE)
+  total_RMSE = total_RMSE+temp_RMSE
+}
+#CV Press = 1
+exp(total_RMSE/iterations)
+#Build model with full dataset for fitting
+backward_fit = lm(lSalePrice~.-Id,data=variables.used)
+backward.model = ols_step_backward_p(backward_fit,prem=0.1,details=FALSE)
+backward.model$model
+backward.model
+ols_plot_resid_stand(backward.model$model)
+ols_plot_cooksd_bar(backward.model$model)
+plot(backward.model$model)
+
+testVariable$lSalePriceBackward = predict(backward.model$model,testVariable)
+testVariable$SalePrice = exp(testVariable$lSalePriceBackward)
+result.backward = testVariable %>% dplyr::select(Id,SalePrice)
+write.csv(result.backward,"Backward_Prediction_usingP_Miller_YU.csv",row.names = FALSE)
+```
 
 
 
