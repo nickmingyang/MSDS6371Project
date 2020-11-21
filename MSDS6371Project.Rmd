@@ -15,6 +15,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(olsrr)
+library(GGally)
+library(caret)
+library(MASS)
+library(leaps)
 #Load in Dataset
 #Call original data amesHouse
 amesHouse = read.csv("/Users/mingyang/Desktop/SMU/StatisticalFoundation_Fall2020/MSDS6371Project/train.csv",header = TRUE)
@@ -28,7 +32,7 @@ amesHouse$Neighborhood
 #### Analysis 1:
 ```{r}
 #extract variables we're interested for Analysis 1
-data1 = amesHouse %>% select(SalePrice,GrLivArea,Neighborhood)%>%
+data1 = amesHouse %>% dplyr::select(SalePrice,GrLivArea,Neighborhood)%>%
   filter(Neighborhood=="NAmes"|Neighborhood=="Edwards"|Neighborhood=="BrkSide")
 str(data1)
 #383 observations selected after filtering neighborhood of "NAmes", "Edwards" and "BrkSide"
@@ -73,7 +77,109 @@ ols_plot_resid_stand(model3)
 
 ```
 
+#### Analysis 2 - Variable converting & Inspecting relationship:
+```{r}
+# convert certain columns we need into factor in order to use multi regression model
+cols.to.factor = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities",
+                   "LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType",
+                   "HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st",
+                   "Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual",
+                   "BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC",
+                   "CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType",
+                   "GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature",
+                   "SaleType","SaleCondition","PoolArea","MoSold","YrSold","Fireplaces","FullBath")
+amesHouse[cols.to.factor] = lapply(amesHouse[cols.to.factor],factor)
+str(amesHouse)
 
+#Now exploring relationships between continuous variables
+amesHouse %>% dplyr::select(SalePrice,LotFrontage,LotArea,YearBuilt,YearRemodAdd,MasVnrArea,BsmtFinSF1,BsmtFinSF2)%>%
+  ggpairs()
+#Try Logrithmic on SalePrice
+amesHouse$lSalePrice = log(amesHouse$SalePrice)
+#explore relationship between log SalePrice
+amesHouse %>% dplyr::select(lSalePrice,LotFrontage,LotArea,YearBuilt,YearRemodAdd,MasVnrArea,BsmtFinSF1,BsmtFinSF2)%>%
+  ggpairs()
+#There seem to have a slight improvement between YearBuilt and YearRemodAdd
+
+#Move forward with next batch of exploration
+amesHouse %>% dplyr::select(SalePrice,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea) %>%
+  ggpairs()
+amesHouse %>% dplyr::select(lSalePrice,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea) %>%
+  ggpairs()
+#There seem to have a good linear relationship between lSalePrice and TotalBsmtSF, X1stFlrSF, X2ndFlrSF,GrLivArea
+#correlation looks better with lSalePrice comparing to SalePrice
+
+#Move forward with next batch of exploration
+amesHouse %>% dplyr::select(lSalePrice,BsmtFullBath,BsmtHalfBath,HalfBath,BedroomAbvGr,KitchenAbvGr,
+                     TotRmsAbvGrd)%>%
+  ggpairs()
+
+#The only variable seem to have good correlation with lSalePrice is FullBath,TotRmsAbvGrd.
+#???If we should change BsmtFullBath,BsmtHalfBath,HalfBath,BedroomAbvGr,KitchenAbvGr to factors???
+#Keep going
+amesHouse %>% dplyr::select(lSalePrice,GarageYrBlt,GarageCars,GarageArea) %>% ggpairs()
+#The above variables all seem to have a good linear correlation with lSalePrice
+#Keep going
+amesHouse %>% dplyr::select(lSalePrice,WoodDeckSF,OpenPorchSF,EnclosedPorch,X3SsnPorch,ScreenPorch,MiscVal)%>%
+  ggpairs()
+#linear relationships don't seem particularly strong except WoodDeckSF, OpenPorchSF
+
+
+```
+### Select key variables that can be used as predictor - based on results above
+```{r}
+summary(amesHouse)
+#LotFrontage has too many missing values, yet it only has 0.356 correlation with lSalePrice, so not using this variable
+#Alley has too many missing values, so delete column Alley
+#LowQualFinSF has close to no correlaion with lSalePrice, delete
+#BsmtHalfBath has close to 0 correlation,delete
+#FireplaceQu too much missing data, delete
+#X3SsnPorch too little correlation, delete
+#PoolQC too much missing data, delete
+#MiscFeature too much missing data, delete
+#MiscVal too little correlation, delete
+#Consder adding: Exterior1nd, Exterior2nd
+#Selected variables make sense to predict lSalePrice
+amesHouse$PoolYN = ifelse(is.na(amesHouse$PoolQC),"NO","YES")
+amesHouse$PoolYN = as.factor(amesHouse$PoolYN)
+variables.used = amesHouse %>% 
+  dplyr::select(Id,MSSubClass,MSZoning,LotArea,LotConfig,Neighborhood,HouseStyle,
+         OverallQual,OverallCond,YearBuilt,YearRemodAdd,MasVnrArea,ExterQual,
+         ExterCond,Foundation,BsmtQual,BsmtCond,TotalBsmtSF,
+         Heating,CentralAir,X1stFlrSF,GrLivArea,FullBath,KitchenQual,TotRmsAbvGrd,
+         Fireplaces,GarageType,GarageCars,PoolYN,MoSold,YrSold,lSalePrice)
+str(variables.used)
+summary(variables.used)
+#Adjusting MasVnrArea
+variables.used$MasVnrArea = ifelse(is.na(variables.used$MasVnrArea),0,variables.used$MasVnrArea)
+variables.used$BsmtQual = as.character(variables.used$BsmtQual)
+variables.used$BsmtQual = ifelse(is.na(variables.used$BsmtQual),"NONE",variables.used$BsmtQual)
+variables.used$BsmtQual = as.factor(variables.used$BsmtQual)
+#Adjusting BsmtCond
+variables.used$BsmtCond = as.character(variables.used$BsmtCond)
+variables.used$BsmtCond = ifelse(is.na(variables.used$BsmtCond),"NONE",variables.used$BsmtCond)
+variables.used$BsmtCond = as.factor(variables.used$BsmtCond)
+#Adjusting GarageType
+variables.used$GarageType = as.character(variables.used$GarageType)
+variables.used$GarageType = ifelse(is.na(variables.used$GarageType),"NONE",variables.used$GarageType)
+variables.used$GarageType = as.factor(variables.used$GarageType)
+
+temp = variables.used %>% drop_na()
+```
+
+
+### Stepwise Selection
+```{r}
+set.seed(11)
+train.control <- trainControl(method = "cv", number = 10)
+step.model = train(lSalePrice~.-Id, data=variables.used,
+                   method="lmStepAIC",
+                   trControl = train.control,
+                   trace=FALSE)
+step.model$results
+step.model$finalModel
+summary(step.model$finalModel)
+```
 
 
 
