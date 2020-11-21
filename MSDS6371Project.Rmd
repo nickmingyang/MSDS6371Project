@@ -179,8 +179,49 @@ step.model = train(lSalePrice~.-Id, data=variables.used,
 step.model$results
 step.model$finalModel
 summary(step.model$finalModel)
+print(step.model)
+exp(0.1494448)
 ```
 
+### Load in Test Data 
+```{r}
+#Load in test.csv
+testData = read.csv("/Users/mingyang/Desktop/SMU/StatisticalFoundation_Fall2020/MSDS6371Project/test.csv",header = TRUE)
+#Convert variables we need from N/A to NONE
+testData$MasVnrArea = ifelse(is.na(testData$MasVnrArea),0,testData$MasVnrArea)
+testData$TotalBsmtSF = ifelse(is.na(testData$TotalBsmtSF),0,testData$TotalBsmtSF)
+testData$GarageCars = ifelse(is.na(testData$GarageCars),0,testData$GarageCars)
+testData$MSZoning = ifelse(is.na(testData$MSZoning),"RL",testData$MSZoning)
+testData$KitchenQual = ifelse(is.na(testData$KitchenQual),"TA",testData$KitchenQual)
+testData$MSSubClass = ifelse(testData$MSSubClass==150,180,testData$MSSubClass)
+testData$FullBath = ifelse(testData$FullBath==4,3,testData$FullBath)
+testData$Fireplaces = ifelse(testData$Fireplaces==4,3,testData$Fireplaces)
+
+testData$BsmtQual = ifelse(is.na(testData$BsmtQual),"NONE",testData$BsmtQual)
+testData$BsmtCond = ifelse(is.na(testData$BsmtCond),"NONE",testData$BsmtCond)
+testData$GarageType = ifelse(is.na(testData$GarageType),"NONE",testData$GarageType)
+#Convert some variables we need into factor
+testData[cols.to.factor] = lapply(testData[cols.to.factor],factor)
+#create variable PoolYN
+testData$PoolYN = ifelse(is.na(testData$PoolQC),"NO","YES")
+testData$PoolYN = as.factor(testData$PoolYN)
+#select variables needed for testing
+testVariable = testData %>% 
+  dplyr::select(Id,MSSubClass,MSZoning,LotArea,LotConfig,Neighborhood,HouseStyle,
+         OverallQual,OverallCond,YearBuilt,YearRemodAdd,MasVnrArea,ExterQual,
+         ExterCond,Foundation,BsmtQual,BsmtCond,TotalBsmtSF,
+         Heating,CentralAir,X1stFlrSF,GrLivArea,FullBath,KitchenQual,TotRmsAbvGrd,
+         Fireplaces,GarageType,GarageCars,PoolYN,MoSold,YrSold)
+
+```
+
+### run stepwise test and export result to csv file - Kaggle Score 0.15372
+```{r}
+testVariable$lSalePrice = predict(step.model,testVariable)
+testVariable$SalePrice = exp(testVariable$lSalePrice)
+result.stepwise = testVariable %>% dplyr::select(Id,SalePrice)
+write.csv(result.stepwise,"stepwise_Prediction_Miller_YU.csv",row.names = FALSE)
+```
 
 
 
