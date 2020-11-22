@@ -110,6 +110,9 @@ amesHouse %>% dplyr::select(lSalePrice,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF
 #correlation looks better with lSalePrice comparing to SalePrice
 
 #Move forward with next batch of exploration
+amesHouse %>% dplyr::select(SalePrice,BsmtFullBath,BsmtHalfBath,HalfBath,BedroomAbvGr,KitchenAbvGr,
+                     TotRmsAbvGrd)%>%
+  ggpairs()
 amesHouse %>% dplyr::select(lSalePrice,BsmtFullBath,BsmtHalfBath,HalfBath,BedroomAbvGr,KitchenAbvGr,
                      TotRmsAbvGrd)%>%
   ggpairs()
@@ -117,13 +120,17 @@ amesHouse %>% dplyr::select(lSalePrice,BsmtFullBath,BsmtHalfBath,HalfBath,Bedroo
 #The only variable seem to have good correlation with lSalePrice is FullBath,TotRmsAbvGrd.
 #???If we should change BsmtFullBath,BsmtHalfBath,HalfBath,BedroomAbvGr,KitchenAbvGr to factors???
 #Keep going
+amesHouse %>% dplyr::select(SalePrice,GarageYrBlt,GarageCars,GarageArea) %>% ggpairs()
 amesHouse %>% dplyr::select(lSalePrice,GarageYrBlt,GarageCars,GarageArea) %>% ggpairs()
 #The above variables all seem to have a good linear correlation with lSalePrice
 #Keep going
+amesHouse %>% dplyr::select(SalePrice,WoodDeckSF,OpenPorchSF,EnclosedPorch,X3SsnPorch,ScreenPorch,MiscVal)%>%
+  ggpairs()
 amesHouse %>% dplyr::select(lSalePrice,WoodDeckSF,OpenPorchSF,EnclosedPorch,X3SsnPorch,ScreenPorch,MiscVal)%>%
   ggpairs()
 #linear relationships don't seem particularly strong except WoodDeckSF, OpenPorchSF
-
+#Overall, lSalePrice seem to improve the correlation with our important predictors a bit. So we will proceed
+#with lSalePrice Analysis
 
 ```
 ### Select key variables that can be used as predictor - based on results above
@@ -244,6 +251,8 @@ for(i in 1:iterations){
   temp_RMSE = sqrt(squared_MSPE)
   total_RMSE = total_RMSE+temp_RMSE
 }
+#total RMSE = 0.00374748... RMSE = 839.29 under original SalePrice scale
+total_RMSE/iterations
 #CV Press=1.003755
 exp(total_RMSE/iterations)
 #Build model with full dataset for fitting
@@ -260,6 +269,9 @@ testVariable$SalePrice = exp(testVariable$lSalePriceForward)
 result.forward = testVariable %>% dplyr::select(Id,SalePrice)
 write.csv(result.forward,"Forward_Prediction_Miller_YU_2.csv",row.names = FALSE)
 
+#Try Mass Library Forward model
+forward.model2 = stepAIC(forward_fit,direction="forward")
+forward.model2$model
 
 ```
 
@@ -298,6 +310,17 @@ testVariable$lSalePriceBackward = predict(backward.model$model,testVariable)
 testVariable$SalePrice = exp(testVariable$lSalePriceBackward)
 result.backward = testVariable %>% dplyr::select(Id,SalePrice)
 write.csv(result.backward,"Backward_Prediction_Miller_YU.csv",row.names = FALSE)
+
+
+#Try Mass Library Forward model - Same result 0.15432
+backward.model2 = stepAIC(backward_fit,direction="backward")
+backward.model2
+
+#Testing with Mass Library
+testVariable$lSalePriceBackward = predict(backward.model2,testVariable)
+testVariable$SalePrice = exp(testVariable$lSalePriceBackward)
+result.backward = testVariable %>% dplyr::select(Id,SalePrice)
+write.csv(result.backward,"Backward_Prediction_2_Miller_YU.csv",row.names = FALSE)
 ```
 
 ### Backward Selection - use p-value - Kaggle 0.15505
