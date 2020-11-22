@@ -186,6 +186,7 @@ step.model$results
 step.model$finalModel
 summary(step.model$finalModel)
 print(step.model)
+# RMSE = 0.1494448 by 10 fold internal cross-validation
 exp(0.1494448)
 ols_plot_resid_stand(step.model$finalModel)
 ols_plot_cooksd_bar(step.model$finalModel)
@@ -233,14 +234,15 @@ write.csv(result.stepwise,"stepwise_Prediction_Miller_YU.csv",row.names = FALSE)
 
 ### Forward Selection - Kaggle Score 0.15432
 ```{r}
-set.seed(12)
+set.seed(115)
 #create forward fit model
 
-#write a program to pretict 100 different combination to test forward selection model
-iterations = 100
-splitPerc = 0.8
+#write a program to pretict 5 different combination to test forward selection model
+iterations = 5
+splitPerc = 0.9
 total_RMSE = 0
 for(i in 1:iterations){
+  print(i)
   trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
   train = variables.used[trainIndices,]
   test = variables.used[-trainIndices,]
@@ -251,10 +253,9 @@ for(i in 1:iterations){
   temp_RMSE = sqrt(squared_MSPE)
   total_RMSE = total_RMSE+temp_RMSE
 }
-#total RMSE = 0.00374748... RMSE = 839.29 under original SalePrice scale
+#total RMSE = 0.1235978... RMSE = 839.29 under original SalePrice scale
 total_RMSE/iterations
-#CV Press=1.003755
-exp(total_RMSE/iterations)
+
 #Build model with full dataset for fitting
 forward_fit = lm(lSalePrice~.-Id,data=variables.used)
 forward.model = ols_step_forward_aic(forward_fit,penter=0.15)
@@ -277,14 +278,15 @@ forward.model2$model
 
 ### Backward Selection - Kaggle Score 0.15432
 ```{r}
-set.seed(15)
+set.seed(112)
 #create forward fit model
 
-#write a program to pretict 100 different combination to test forward selection model
-iterations = 100
-splitPerc = 0.8
+#write a program to pretict 5 different combination to test forward selection model
+iterations = 5
+splitPerc = 0.95
 total_RMSE = 0
 for(i in 1:iterations){
+  print(i)
   trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
   train = variables.used[trainIndices,]
   test = variables.used[-trainIndices,]
@@ -295,8 +297,9 @@ for(i in 1:iterations){
   temp_RMSE = sqrt(squared_MSPE)
   total_RMSE = total_RMSE+temp_RMSE
 }
-#CV Press = 1
-exp(total_RMSE/iterations)
+#CV Press Estimate = 0.1481379
+total_RMSE/iterations
+
 #Build model with full dataset for fitting
 backward_fit = lm(lSalePrice~.-Id,data=variables.used)
 backward.model = ols_step_backward_aic(backward_fit)
@@ -328,11 +331,12 @@ write.csv(result.backward,"Backward_Prediction_2_Miller_YU.csv",row.names = FALS
 set.seed(16)
 #create forward fit model
 
-#write a program to pretict 100 different combination to test forward selection model
-iterations = 100
-splitPerc = 0.8
+#write a program to pretict 20 different combination to test forward selection model
+iterations = 20
+splitPerc = 0.95
 total_RMSE = 0
 for(i in 1:iterations){
+  print(i)
   trainIndices = sample(1:dim(variables.used)[1],round(splitPerc * dim(variables.used)[1]))
   train = variables.used[trainIndices,]
   test = variables.used[-trainIndices,]
@@ -343,8 +347,8 @@ for(i in 1:iterations){
   temp_RMSE = sqrt(squared_MSPE)
   total_RMSE = total_RMSE+temp_RMSE
 }
-#CV Press = 1
-exp(total_RMSE/iterations)
+#CV Press estimate = 0.1306067
+total_RMSE/iterations
 #Build model with full dataset for fitting
 backward_fit = lm(lSalePrice~.-Id,data=variables.used)
 backward.model = ols_step_backward_p(backward_fit,prem=0.1,details=FALSE)
