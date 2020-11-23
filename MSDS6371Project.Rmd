@@ -237,7 +237,7 @@ write.csv(result.stepwise,"stepwise_Prediction_Miller_YU.csv",row.names = FALSE)
 set.seed(116)
 #create forward fit model
 
-#write a program to generate 5 different combination to test forward selection model
+#write a program to generate 5 different combination to Cross-Validate Forward Selection Model
 iterations = 5
 splitPerc = 0.9
 total_RMSE = 0
