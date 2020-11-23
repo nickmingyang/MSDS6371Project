@@ -224,7 +224,7 @@ testVariable = testData %>%
 
 ```
 
-### run stepwise test and export result to csv file - Kaggle Score 0.15372
+### run stepwise test and export result to csv file - Kaggle Score 0.15372, CV Press = 0.1494, Adjusted R2 = 0.8975
 ```{r}
 testVariable$lSalePrice = predict(step.model,testVariable)
 testVariable$SalePrice = exp(testVariable$lSalePrice)
@@ -232,12 +232,12 @@ result.stepwise = testVariable %>% dplyr::select(Id,SalePrice)
 write.csv(result.stepwise,"stepwise_Prediction_Miller_YU.csv",row.names = FALSE)
 ```
 
-### Forward Selection - Kaggle Score 0.15432
+### Forward Selection - Kaggle Score 0.15432, CV Press estimate = 0.14199, Adjusted R2 = 0.89575
 ```{r}
-set.seed(115)
+set.seed(116)
 #create forward fit model
 
-#write a program to pretict 5 different combination to test forward selection model
+#write a program to generate 5 different combination to test forward selection model
 iterations = 5
 splitPerc = 0.9
 total_RMSE = 0
@@ -253,7 +253,7 @@ for(i in 1:iterations){
   temp_RMSE = sqrt(squared_MSPE)
   total_RMSE = total_RMSE+temp_RMSE
 }
-#total RMSE = 0.1235978... RMSE = 839.29 under original SalePrice scale
+#total RMSE = 0.1235978... 
 total_RMSE/iterations
 
 #Build model with full dataset for fitting
@@ -276,7 +276,7 @@ forward.model2$model
 
 ```
 
-### Backward Selection - Kaggle Score 0.15432
+### Backward Selection - Kaggle Score 0.15432, CV-Press = 0.148, adjusted R2 = 0.89575
 ```{r}
 set.seed(112)
 #create forward fit model
@@ -364,6 +364,296 @@ result.backward = testVariable %>% dplyr::select(Id,SalePrice)
 write.csv(result.backward,"Backward_Prediction_usingP_Miller_YU.csv",row.names = FALSE)
 ```
 
+### Custom Model - Kaggle Score = 0.14773, CV-Press = 0.1649, Adjusted R2 = 0.9207
+```{r}
+#reload data
+amesHouse = read.csv("/Users/mingyang/Desktop/SMU/StatisticalFoundation_Fall2020/MSDS6371Project/train.csv",header = TRUE)
+summary(amesHouse)
+library(mice) #Load mice library to analyze the pattern of missing data
+md.pattern(amesHouse)
+#imputing missing data using predictive mean matching
+tempData <- mice(amesHouse,m=1,maxit=50,meth='pmm',seed=20)
+amesHouse = complete(tempData,1)
+summary(amesHouse)
+
+
+
+#Convert certain variables into factors
+cols.to.factor = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities",
+                   "LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType",
+                   "HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st",
+                   "Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual",
+                   "BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC",
+                   "CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType",
+                   "GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature",
+                   "SaleType","SaleCondition","PoolArea","MoSold","YrSold","Fireplaces","FullBath")
+amesHouse[cols.to.factor] = lapply(amesHouse[cols.to.factor],factor)
+
+
+amesHouse$PoolYN = ifelse(is.na(amesHouse$PoolQC),"NO","YES")
+amesHouse$PoolYN = as.factor(amesHouse$PoolYN)
+#First test with first few variables
+models1 = regsubsets(SalePrice~MSSubClass+MSZoning+LotFrontage+LotArea+Street+Alley+LotShape, data = amesHouse, nvmax = 10)
+summary(models1)
+#Choose the optimal model
+res.sum <- summary(models1)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# As we can see among the variables selected MSSubClass, MSZoning,LotArea,Alley has variables that are significant
+
+#Next set of variables
+models2 = regsubsets(SalePrice~LandContour+Utilities+LotConfig+LandSlope+Neighborhood+Condition1+Condition2, data = amesHouse, nvmax = 15)
+summary(models2)
+#Choose the optimal model
+res.sum <- summary(models2)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# LotConfig, Neighborhood, Condition2 has most variables that can be significant
+
+#Next set of variables
+models3 = regsubsets(SalePrice~BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt, data = amesHouse, nvmax = 10)
+summary(models3)
+#Choose the optimal model
+res.sum <- summary(models3)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# BldgType, Neighborhood, OverallQual, YearBuilt has most variables that can be significant
+
+#Next set of variables
+models4 = regsubsets(SalePrice~YearRemodAdd+RoofStyle+RoofMatl+Exterior1st+Exterior2nd, data = amesHouse, nvmax = 10)
+summary(models4)
+#Choose the optimal model
+res.sum <- summary(models4)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# YearRemodAdd, RoofStyleHip, RoofMatl, Exterior1st, Exterior2nd has most variables that can be significant
+
+#Next set of variables
+models5 = regsubsets(SalePrice~MasVnrType+MasVnrArea+ExterQual+ExterCond+Foundation, data = amesHouse, nvmax = 10)
+summary(models5)
+#Choose the optimal model
+res.sum <- summary(models5)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# MasVnrType, MasVnrArea, ExterQual, Foundation, have most variables that can be significant
+
+#Next set of variables all basement section
+models6 = regsubsets(SalePrice~BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+                       BsmtFinType2+BsmtFinSF2+BsmtUnfSF+TotalBsmtSF, data = amesHouse, nvmax = 15)
+summary(models6)
+#Choose the optimal model
+res.sum <- summary(models6)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# BsmtQual, BsmtFinType1, TotalBsmtSF have most variables that can be significant
+
+#Next set of variables  - Utilities
+models7 = regsubsets(SalePrice~Heating+HeatingQC+CentralAir+Electrical, data = amesHouse, nvmax = 10)
+summary(models7)
+#Choose the optimal model
+res.sum <- summary(models7)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# Heating, HeatingQC, CentralAir,Elecrical have most variables that can be significant
+
+#Next set of variables  - Square foots
+models8 = regsubsets(SalePrice~X1stFlrSF+X2ndFlrSF+LowQualFinSF+GrLivArea+BsmtFullBath+BsmtHalfBath+FullBath+HalfBath, data = amesHouse, nvmax = 10)
+summary(models8)
+#Choose the optimal model
+res.sum <- summary(models8)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# X1stFlrSF, X2ndFlrSF, LowQualFinSF,GrLivArea,BsmtFullBath,BsmtHalfBath,FullBath1,HalfBath have most variables that can be significant
+
+#Next set of variables  - Square foots
+models9 = regsubsets(SalePrice~BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Functional, data = amesHouse, nvmax = 10)
+summary(models9)
+#Choose the optimal model
+res.sum <- summary(models9)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# BedroomAbvGr, KitchenAbvGr, KitchenQual,TotRmsAbvGrd have most variables that can be significant
+
+#Next set of variables  
+models10 = regsubsets(SalePrice~Fireplaces+FireplaceQu+GarageType+GarageYrBlt+
+                        GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond, data = amesHouse, nvmax = 10)
+summary(models10)
+#Choose the optimal model
+res.sum <- summary(models10)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# Fireplaces, FireplaceQu, GarageFinish,GarageCars,GarageArea have most variables that can be significant
+
+#Next set of variables  
+models11 = regsubsets(SalePrice~PavedDrive+WoodDeckSF+OpenPorchSF+EnclosedPorch+
+                        X3SsnPorch+ScreenPorch, data = amesHouse, nvmax = 10)
+summary(models11)
+#Choose the optimal model
+res.sum <- summary(models11)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# PavedDriveY, WoodDeckSF, OpenPorchSF,X3SsnPorch,ScreenPorch have most variables that can be significant
+
+#Next set of variables  
+models12 = regsubsets(SalePrice~PoolYN+Fence+MiscVal+MoSold+YrSold, data = amesHouse, nvmax = 10)
+summary(models12)
+#Choose the optimal model
+res.sum <- summary(models12)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+# PoolYN, Fence, MoSold,YrSold have most variables that can be significant
+
+#Select Variables
+custom.var = amesHouse %>% 
+  dplyr::select(Id,MSSubClass, MSZoning,LotArea,LotConfig, Neighborhood, Condition2,
+                BldgType, Neighborhood, OverallQual, YearBuilt,YearRemodAdd, RoofStyle, RoofMatl, Exterior1st, Exterior2nd,
+                MasVnrType, MasVnrArea, ExterQual, Foundation, BsmtQual, BsmtFinType1, TotalBsmtSF,
+                Heating, HeatingQC, CentralAir,Electrical,
+                X1stFlrSF, X2ndFlrSF, LowQualFinSF,GrLivArea,BsmtFullBath,BsmtHalfBath,FullBath,HalfBath,
+                BedroomAbvGr, KitchenAbvGr, KitchenQual,TotRmsAbvGrd,
+                Fireplaces,GarageCars,GarageArea,
+                PavedDrive, WoodDeckSF, OpenPorchSF,X3SsnPorch,ScreenPorch,
+                PoolYN, MoSold,YrSold,
+                SalePrice)
+custom.var$SalePrice = log(custom.var$SalePrice)
+custom.var$GrLivArea = log(custom.var$GrLivArea)
+
+#Adjusting NA factors
+custom.var$MasVnrType = as.character(custom.var$MasVnrType)
+custom.var$MasVnrType = ifelse(is.na(custom.var$MasVnrType),"NONE",custom.var$MasVnrType)
+custom.var$MasVnrType = as.factor(custom.var$MasVnrType)
+
+custom.var$BsmtQual = as.character(custom.var$BsmtQual)
+custom.var$BsmtQual = ifelse(is.na(custom.var$BsmtQual),"NONE",custom.var$BsmtQual)
+custom.var$BsmtQual = as.factor(custom.var$BsmtQual)
+
+custom.var$BsmtFinType1 = as.character(custom.var$BsmtFinType1)
+custom.var$BsmtFinType1 = ifelse(is.na(custom.var$BsmtFinType1),"Unf",custom.var$BsmtFinType1)
+custom.var$BsmtFinType1 = as.factor(custom.var$BsmtFinType1)
+
+custom.var$Electrical = as.character(custom.var$Electrical)
+custom.var$Electrical = ifelse(is.na(custom.var$Electrical),"SBrkr",custom.var$Electrical)
+custom.var$Electrical = as.factor(custom.var$Electrical)
+
+#Model Training
+set.seed(11)
+train.control <- trainControl(method = "cv", number = 10)
+custom.model = train(SalePrice~.-Id, data=custom.var,
+                   method="lmStepAIC",
+                   trControl = train.control,
+                   trace=FALSE)
+custom.model$results
+custom.model$finalModel
+summary(custom.model$finalModel)
+print(custom.model)
+# RMSE = 0.1494448 by 10 fold internal cross-validation
+
+ols_plot_resid_stand(custom.model$finalModel)
+ols_plot_cooksd_bar(custom.model$finalModel)
+plot(custom.model$finalModel)
+#Load in testing data and fill in the missing data in the same manner
+testData = read.csv("/Users/mingyang/Desktop/SMU/StatisticalFoundation_Fall2020/MSDS6371Project/test.csv",header = TRUE)
+testData$MSSubClass = ifelse(testData$MSSubClass==150,180,testData$MSSubClass)
+testData$FullBath = ifelse(testData$FullBath==4,3,testData$FullBath)
+testData$Fireplaces = ifelse(testData$Fireplaces==4,3,testData$Fireplaces)
+testData$MasVnrArea = ifelse(is.na(testData$MasVnrArea),0,testData$MasVnrArea)
+testData$TotalBsmtSF = ifelse(is.na(testData$TotalBsmtSF),0,testData$TotalBsmtSF)
+testData$BsmtFullBath = ifelse(is.na(testData$BsmtFullBath),0,testData$BsmtFullBath)
+testData$BsmtHalfBath = ifelse(is.na(testData$BsmtHalfBath),0,testData$BsmtHalfBath)
+testData$GarageCars = ifelse(is.na(testData$GarageCars),0,testData$GarageCars)
+testData$GarageArea = ifelse(is.na(testData$GarageArea),0,testData$GarageArea)
+testData[cols.to.factor] = lapply(testData[cols.to.factor],factor)
+
+testData$PoolYN = ifelse(is.na(testData$PoolQC),"NO","YES")
+testData$PoolYN = as.factor(testData$PoolYN)
+summary(testData)
+#Testing test set
+testData1 = testData %>% 
+  dplyr::select(Id,MSSubClass, MSZoning,LotArea,LotConfig, Neighborhood, Condition2,
+                BldgType, Neighborhood, OverallQual, YearBuilt,YearRemodAdd, RoofStyle, RoofMatl, Exterior1st, Exterior2nd,
+                MasVnrType, MasVnrArea, ExterQual, Foundation, BsmtQual, BsmtFinType1, TotalBsmtSF,
+                Heating, HeatingQC, CentralAir,Electrical,
+                X1stFlrSF, X2ndFlrSF, LowQualFinSF,GrLivArea,BsmtFullBath,BsmtHalfBath,FullBath,HalfBath,
+                BedroomAbvGr, KitchenAbvGr, KitchenQual,TotRmsAbvGrd,
+                Fireplaces,GarageCars,GarageArea,
+                PavedDrive, WoodDeckSF, OpenPorchSF,X3SsnPorch,ScreenPorch,
+                PoolYN, MoSold,YrSold)
+testData1$GrLivArea = log(testData1$GrLivArea)
+summary(testData1)
+#Adjusting NA factors
+testData1$MSZoning = as.character(testData1$MSZoning)
+testData1$MSZoning = ifelse(is.na(testData1$MSZoning),"RL",testData1$MSZoning)
+testData1$MSZoning = as.factor(testData1$MSZoning)
+
+testData1$Exterior1st = as.character(testData1$Exterior1st)
+testData1$Exterior1st = ifelse(is.na(testData1$Exterior1st),"Other",testData1$Exterior1st)
+testData1$Exterior1st = as.factor(testData1$Exterior1st)
+
+testData1$Exterior2nd = as.character(testData1$Exterior2nd)
+testData1$Exterior2nd = ifelse(is.na(testData1$Exterior2nd),"Other",testData1$Exterior2nd)
+testData1$Exterior2nd = as.factor(testData1$Exterior2nd)
+
+testData1$BsmtQual = as.character(testData1$BsmtQual)
+testData1$BsmtQual = ifelse(is.na(testData1$BsmtQual),"TA",testData1$BsmtQual)
+testData1$BsmtQual = as.factor(testData1$BsmtQual)
+
+testData1$BsmtFinType1 = as.character(testData1$BsmtFinType1)
+testData1$BsmtFinType1 = ifelse(is.na(testData1$BsmtFinType1),"Unf",testData1$BsmtFinType1)
+testData1$BsmtFinType1 = as.factor(testData1$BsmtFinType1)
+
+testData1$KitchenQual = as.character(testData1$KitchenQual)
+testData1$KitchenQual = ifelse(is.na(testData1$KitchenQual),"TA",testData1$KitchenQual)
+testData1$KitchenQual = as.factor(testData1$KitchenQual)
+
+testData1$MasVnrType = as.character(testData1$MasVnrType)
+testData1$MasVnrType = ifelse(is.na(testData1$MasVnrType),"None",testData1$MasVnrType)
+testData1$MasVnrType = as.factor(testData1$MasVnrType)
+
+testData1$Exterior1st = as.character(testData1$Exterior1st)
+testData1$Exterior1st = ifelse(testData1$Exterior1st=="Other","VinylSd",testData1$Exterior1st)
+testData1$Exterior1st = as.factor(testData1$Exterior1st)
+
+testData1$SalePrice = predict(custom.model,testData1)
+testData1$SalePrice = exp(testData1$SalePrice)
+custom.result = testData1 %>% dplyr::select(Id,SalePrice)
+write.csv(custom.result,"custom_model_Miller_YU.csv",row.names = FALSE)
+```
 
 
 
