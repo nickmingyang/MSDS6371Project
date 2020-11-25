@@ -60,6 +60,10 @@ ols_plot_resid_stand(model1)
 # Call these new dataset without outliers data2
 data2 = data1[-c(131,169,190,339),]
 str(data2)
+data2 %>% ggplot(aes(x=GrLivArea,y=SalePrice))+
+  geom_point()+ggtitle("Sale Price vs. Square Foot of Living area")+
+  xlab("Square Foot of Living Area")+
+  ylab("Sale Price")
 #build new model to double check
 model2 = lm(SalePrice~GrLivArea,data=data2)
 summary(model2)
@@ -69,11 +73,29 @@ ols_plot_resid_stand(model2)
 #Cook's Distance within roughly 0.1, residual within 3, decent amount of observations beyond 2 (within 5%)
 #Assumptions met, move on to include categorical variables
 model3 = lm(SalePrice~GrLivArea+Neighborhood+GrLivArea*Neighborhood,data=data2)
+data2 %>% ggplot(aes(x=GrLivArea,y=SalePrice,color=Neighborhood))+
+  geom_point()+ggtitle("Sale Price vs. Square Foot of Living area")+
+  xlab("Square Foot of Living Area")+
+  ylab("Sale Price")
 summary(model3)
 plot(model3)
 ols_plot_cooksd_bar(model3)
 ols_plot_resid_stand(model3)
+anova(model3)
+confint(model3)
 #Assumptions are met, model 3 has higher Adjusted R-squared compared to model2
+# Change reference to Edwards to get CI for slope
+data2$Neighborhood = relevel(data2$Neighborhood,ref="Edwards")
+model3 = lm(SalePrice~GrLivArea+Neighborhood+GrLivArea*Neighborhood,data=data2)
+summary(model3)
+confint(model3)
+
+# Change reference to NAmes to get CI for slope
+data2$Neighborhood = relevel(data2$Neighborhood,ref="NAmes")
+model3 = lm(SalePrice~GrLivArea+Neighborhood+GrLivArea*Neighborhood,data=data2)
+summary(model3)
+confint(model3)
+
 
 ```
 
