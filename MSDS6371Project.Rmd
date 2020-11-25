@@ -399,7 +399,6 @@ amesHouse = complete(tempData,1)
 summary(amesHouse)
 
 
-
 #Convert certain variables into factors
 cols.to.factor = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities",
                    "LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType",
